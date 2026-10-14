@@ -2,14 +2,14 @@ import { useState } from 'react'
 import './App.css'
 
 function App() {
-  const [page, setPage] = useState('home')
+  const [page, setPage] = useState('browse')
   const [search, setSearch] = useState('')
 
   return (
     <>
       <header className="header">
         <h1>TrustLedge Trading</h1>
-        <button className="nav-link" onClick={() => setPage('page2')}>
+        <button className="nav-link" onClick={() => setPage('browse')}>
           Browse
         </button>
         <button className="nav-link" onClick={() => setPage('create')}>
@@ -22,7 +22,7 @@ function App() {
       </header>
 
       <main className="page">
-        {page === 'page2' && (
+        {page === 'browse' && (
           <div className="browse">
             <h2>Browse listings</h2>
             
