@@ -4,6 +4,17 @@ import './App.css'
 function App() {
   const [page, setPage] = useState('browse')
   const [search, setSearch] = useState('')
+  const [image, setImage] = useState(null) // the actual file, sent to the API later
+  const [preview, setPreview] = useState(null) // temporary URL so we can show it
+
+  function handleImage(e) {
+    const file = e.target.files[0]
+    if (!file) return
+
+    if (preview) URL.revokeObjectURL(preview) // free the old preview
+    setImage(file)
+    setPreview(URL.createObjectURL(file))
+  }
 
   return (
     <>
@@ -69,25 +80,32 @@ function App() {
             <form className="listing-form" onSubmit={(e) => e.preventDefault()}>
               <label>
                 Title
-                <input type="text" />
+                <input type="text" placeholder="e.g. Watch" />
               </label>
 
               <label>
                 Description
-                <textarea rows="5" />
+                <textarea rows="5" placeholder="Insert description here" />
               </label>
 
               <label>
                 Price
                 <span className="price-input">
-                  <input type="number" min="0" step="0.001" />
+                  <input type="number" min="0" step="0.001" placeholder="e.g. 0.001" />
                   SepoliaETH
                 </span>
               </label>
 
               <label>
                 Image
-                <span className="image-box" />
+                <span className="image-box">
+                  {preview ? (
+                    <img src={preview} alt="Selected item" />
+                  ) : (
+                    <span>Click to choose an image</span>
+                  )}
+                  <input type="file" accept="image/png, image/jpeg" onChange={handleImage} />
+                </span>
               </label>
 
               <button type="submit" className="btn submit-btn">
