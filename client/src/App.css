@@ -1,11 +1,36 @@
 .header {
-  padding: 24px 32px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 32px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 
+.nav-link {
+  font: inherit;
+  font-weight: 600;
+  color: #000;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+}
+
 .page {
   flex-grow: 1;
+  width: 100%;
+  max-width: 1126px;
+  margin: 0 auto;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
