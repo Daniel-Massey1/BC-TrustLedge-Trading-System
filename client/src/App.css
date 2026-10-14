@@ -45,6 +45,7 @@
 }
 
 .page {
+  position: relative;
   flex-grow: 1;
   width: 100%;
   max-width: 1126px;
@@ -271,6 +272,22 @@
 .trade-box {
   min-height: 80px;
 }
+
+
+.toast {
+  position: absolute;
+  top: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 16px;
+  border-radius: 8px;
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--accent);
+  font-weight: 600;
+  animation: fade 3s ease forwards;
+}
+
+
 
 .btn.submit-btn {
   align-self: flex-start;

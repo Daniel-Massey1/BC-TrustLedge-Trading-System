@@ -9,6 +9,7 @@ function App() {
   const [price, setPrice] = useState('')
   const [image, setImage] = useState(null) // the actual file, sent to the API later
   const [preview, setPreview] = useState(null) // temporary URL so we can show it
+  const [message, setMessage] = useState('')
 
   function handleImage(e) {
     const file = e.target.files[0]
@@ -26,6 +27,19 @@ function App() {
 
     // TODO: send to the API once it exists
     console.log('New listing:', listing)
+
+
+    setTitle('')
+    setDescription('')
+    setPrice('')
+    setImage(null)
+    if (preview) URL.revokeObjectURL(preview)
+    setPreview(null)
+    setPage('browse')
+
+    
+    setMessage('Listing created')
+    setTimeout(() => setMessage(''), 3000)
   }
 
   return (
@@ -45,6 +59,12 @@ function App() {
       </header>
 
       <main className="page">
+        {message && (
+          <div className="toast" role="status">
+            {message}
+          </div>
+        )}
+
         {page === 'browse' && (
           <div className="browse">
             <h2>Browse listings</h2>
