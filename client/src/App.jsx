@@ -1,12 +1,36 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 
 // Sample listings until the API exists
 const mockListings = [
-  { id: 1, title: 'Sony WH-1000XM4 headphones', price: '0.045', seller: '0x3fA2…9c1E' },
-  { id: 2, title: 'Vintage denim jacket', price: '0.012', seller: '0x81bD…44a0' },
-  { id: 3, title: 'Nintendo Switch Lite', price: '0.060', seller: '0x5C09…e7B3' },
-  { id: 4, title: 'Desk lamp, warm white', price: '0.006', seller: '0xA7e1…0d2F' },
+  {
+    id: 1,
+    title: 'Sony WH-1000XM4 headphones',
+    description: 'Noise-cancelling headphones in good condition. Comes with the case and charging cable.',
+    price: '0.045',
+    seller: '0x3fA2…9c1E',
+  },
+  {
+    id: 2,
+    title: 'Vintage denim jacket',
+    description: 'Size M, light wash. Some fading on the sleeves but no rips or stains.',
+    price: '0.012',
+    seller: '0x81bD…44a0',
+  },
+  {
+    id: 3,
+    title: 'Nintendo Switch Lite',
+    description: 'Turquoise, barely used. Includes the charger, no games.',
+    price: '0.060',
+    seller: '0x5C09…e7B3',
+  },
+  {
+    id: 4,
+    title: 'Desk lamp, warm white',
+    description: 'Adjustable arm and three brightness levels. Works perfectly.',
+    price: '0.006',
+    seller: '0xA7e1…0d2F',
+  },
 ]
 
 
@@ -29,6 +53,15 @@ function App() {
   const [preview, setPreview] = useState(null) // temporary URL so we can show it
   const [message, setMessage] = useState('')
   const [sort, setSort] = useState('')
+  const [selected, setSelected] = useState(null) // the listing open in the details view
+
+  // Close the details view with the Escape key
+  useEffect(() => {
+    if (!selected) return
+    const onKey = (e) => e.key === 'Escape' && setSelected(null)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selected])
 
   const filteredListings = mockListings
     .filter((item) => item.title.toLowerCase().includes(search.toLowerCase()))
@@ -142,6 +175,11 @@ function App() {
               <div className="card-grid">
                 {filteredListings.map((item) => (
                   <article key={item.id} className="card">
+                    <button
+                      className="card-open"
+                      aria-label={`View details for ${item.title}`}
+                      onClick={() => setSelected(item)}
+                    />
                     <div className="card-image" />
                     <div className="card-body">
                       <h3 title={item.title}>{item.title}</h3>
@@ -234,6 +272,47 @@ function App() {
           </div>
         )}
       </main>
+
+      {selected && (
+        <div className="modal-backdrop" onClick={() => setSelected(null)}>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="modal-close"
+              aria-label="Close"
+              onClick={() => setSelected(null)}
+            >
+              ×
+            </button>
+
+            <div className="modal-image" />
+
+            <div className="modal-info">
+              <h2 id="modal-title">{selected.title}</h2>
+
+              <div className="modal-price">
+                <p className="card-price">{selected.price} SepoliaETH</p>
+                <p className="card-nzd">≈ {toNZD(selected.price)} NZD</p>
+              </div>
+
+              <div className="modal-section">
+                <h3>Description</h3>
+                <p>{selected.description}</p>
+              </div>
+
+              <div className="modal-section">
+                <h3>Seller</h3>
+                <p className="seller-address">{selected.seller}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
