@@ -8,6 +8,7 @@
   --accent: #0f766e;
   --accent-hover: #0d5f59;
   --shadow: rgba(60, 50, 30, 0.08) 0 4px 12px;
+  --focus-ring: 0 0 0 3px rgba(15, 118, 110, 0.15);
 
   --sans: 'Nunito', system-ui, 'Segoe UI', Roboto, sans-serif;
 
@@ -21,7 +22,6 @@
 
 body {
   margin: 0;
-  background: var(--bg);
 }
 
 #root {
@@ -38,12 +38,8 @@ h2 {
   margin: 0;
 }
 
-h1 {
-  font-size: 32px;
-}
-
 h2 {
-  font-size: 26px;
+  font-size: 30px;
 }
 
 p {

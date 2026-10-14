@@ -41,7 +41,6 @@
   padding: 10px 20px;
   border-radius: 8px;
   box-shadow: none;
-  transition: background 0.15s;
 }
 
 .page {
@@ -62,11 +61,6 @@
   text-align: left;
 
   h2 {
-    font-size: 30px;
-    margin-bottom: 4px;
-  }
-  p {
-    color: var(--muted);
     margin-bottom: 24px;
   }
 }
@@ -94,7 +88,7 @@
 
   &:focus-within {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+    box-shadow: var(--focus-ring);
   }
 
   input {
@@ -123,8 +117,92 @@
   &:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+    box-shadow: var(--focus-ring);
   }
+}
+
+.listing-form {
+  width: 100%;
+  max-width: 640px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 28px;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-weight: 600;
+    color: var(--text-h);
+  }
+
+  input,
+  textarea {
+    padding: 12px 14px;
+    box-sizing: border-box;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font: inherit;
+    font-weight: 400;
+    color: var(--text);
+    background: var(--surface);
+  }
+
+  textarea {
+    resize: vertical;
+  }
+
+  input:focus,
+  textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: var(--focus-ring);
+  }
+}
+
+.listing-form .price-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-right: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-weight: 700;
+
+  &:focus-within {
+    border-color: var(--accent);
+    box-shadow: var(--focus-ring);
+  }
+
+  input {
+    flex-grow: 1;
+    min-width: 0;
+    border: none;
+    box-shadow: none;
+  }
+}
+
+/* Empty for now: image upload comes later */
+.image-box {
+  height: 180px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.btn.submit-btn {
+  align-self: flex-start;
+  border-radius: 8px;
+  padding: 12px 28px;
+  box-shadow: none;
 }
 
 .btn {

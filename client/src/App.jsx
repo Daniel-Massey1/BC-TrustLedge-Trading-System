@@ -64,10 +64,36 @@ function App() {
 
         {page === 'create' && (
           <>
-            <h2>Create Listing</h2>
-            <button className="btn" onClick={() => setPage('home')}>
-              Back
-            </button>
+            <h2>Create listing</h2>
+
+            <form className="listing-form" onSubmit={(e) => e.preventDefault()}>
+              <label>
+                Title
+                <input type="text" />
+              </label>
+
+              <label>
+                Description
+                <textarea rows="5" />
+              </label>
+
+              <label>
+                Price
+                <span className="price-input">
+                  <input type="number" min="0" step="0.001" />
+                  SepoliaETH
+                </span>
+              </label>
+
+              <label>
+                Image
+                <span className="image-box" />
+              </label>
+
+              <button type="submit" className="btn submit-btn">
+                Upload listing
+              </button>
+            </form>
           </>
         )}
 
