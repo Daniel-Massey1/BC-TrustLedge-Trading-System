@@ -3,26 +3,45 @@
   align-items: center;
   gap: 24px;
   padding: 16px 32px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
+
+  h1 {
+    font-size: 1.5rem;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+  }
 }
 
 .nav-link {
   font: inherit;
   font-weight: 600;
-  color: #000;
+  color: var(--text);
   background: none;
   border: none;
   padding: 0;
   cursor: pointer;
+  transition: color 0.15s;
 
   &:hover {
-    text-decoration: underline;
+    color: var(--accent);
   }
   &:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 3px;
   }
+}
+
+.btn.login-btn {
+  margin-left: auto;
+  padding: 10px 20px;
+  border-radius: 8px;
+  box-shadow: none;
+  transition: background 0.15s;
 }
 
 .page {

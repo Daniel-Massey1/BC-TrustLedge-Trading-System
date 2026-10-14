@@ -1,11 +1,12 @@
 :root {
-  --text: #5a5650;
+  --text: #000;
   --text-h: #2b2925;
   --bg: #faf8f4;
   --surface: #ffffff;
   --border: #ebe7df;
-  --accent: #2f8f7a;
-  --accent-hover: #267563;
+  --muted: #6b6560;
+  --accent: #0f766e;
+  --accent-hover: #0d5f59;
   --shadow: rgba(60, 50, 30, 0.08) 0 4px 12px;
 
   --sans: 'Nunito', system-ui, 'Segoe UI', Roboto, sans-serif;

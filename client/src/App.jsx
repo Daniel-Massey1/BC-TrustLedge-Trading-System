@@ -17,6 +17,7 @@ function App() {
         <button className="nav-link" onClick={() => setPage('account')}>
           My Account
         </button>
+        <button className="btn login-btn">Login</button>
       </header>
 
       <main className="page">
