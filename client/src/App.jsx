@@ -4,6 +4,9 @@ import './App.css'
 function App() {
   const [page, setPage] = useState('browse')
   const [search, setSearch] = useState('')
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [price, setPrice] = useState('')
   const [image, setImage] = useState(null) // the actual file, sent to the API later
   const [preview, setPreview] = useState(null) // temporary URL so we can show it
 
@@ -14,6 +17,15 @@ function App() {
     if (preview) URL.revokeObjectURL(preview) // free the old preview
     setImage(file)
     setPreview(URL.createObjectURL(file))
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault()
+
+    const listing = { title, description, price, image }
+
+    // TODO: send to the API once it exists
+    console.log('New listing:', listing)
   }
 
   return (
@@ -77,21 +89,38 @@ function App() {
           <>
             <h2>Create listing</h2>
 
-            <form className="listing-form" onSubmit={(e) => e.preventDefault()}>
+            <form className="listing-form" onSubmit={handleSubmit}>
               <label>
                 Title
-                <input type="text" placeholder="e.g. Watch" />
+                <input
+                  type="text"
+                  placeholder="e.g. Watch"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                />
               </label>
 
               <label>
                 Description
-                <textarea rows="5" placeholder="Insert description here" />
+                <textarea
+                  rows="5"
+                  placeholder="Insert description here"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
               </label>
 
               <label>
                 Price
                 <span className="price-input">
-                  <input type="number" min="0" step="0.001" placeholder="e.g. 0.001" />
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    placeholder="e.g. 0.001"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                  />
                   SepoliaETH
                 </span>
               </label>
