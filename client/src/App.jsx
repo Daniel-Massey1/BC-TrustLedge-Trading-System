@@ -3,6 +3,7 @@ import './App.css'
 
 function App() {
   const [page, setPage] = useState('home')
+  const [search, setSearch] = useState('')
 
   return (
     <>
@@ -22,12 +23,43 @@ function App() {
 
       <main className="page">
         {page === 'page2' && (
-          <>
-            <h2>Page 2</h2>
-            <button className="btn" onClick={() => setPage('home')}>
-              Back
-            </button>
-          </>
+          <div className="browse">
+            <h2>Browse listings</h2>
+            
+
+            <div className="browse-controls">
+              <label className="search-bar">
+                <svg
+                  aria-hidden="true"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <line x1="16.5" y1="16.5" x2="21" y2="21" />
+                </svg>
+                <input
+                  type="search"
+                  placeholder="Search for items…"
+                  aria-label="Search listings"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </label>
+              <select className="sort-select" aria-label="Sort listings" defaultValue="">
+                <option value="" disabled>
+                  Sort by
+                </option>
+                <option value="newest">Newest first</option>
+                <option value="price-low">Price: low to high</option>
+                <option value="price-high">Price: high to low</option>
+              </select>
+            </div>
+          </div>
         )}
 
         {page === 'create' && (
