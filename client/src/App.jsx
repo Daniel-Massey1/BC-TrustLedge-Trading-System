@@ -1,6 +1,24 @@
 import { useState } from 'react'
 import './App.css'
 
+// Sample listings until the API exists
+const mockListings = [
+  { id: 1, title: 'Sony WH-1000XM4 headphones', price: '0.045', seller: '0x3fA2…9c1E' },
+  { id: 2, title: 'Vintage denim jacket', price: '0.012', seller: '0x81bD…44a0' },
+  { id: 3, title: 'Nintendo Switch Lite', price: '0.060', seller: '0x5C09…e7B3' },
+  { id: 4, title: 'Desk lamp, warm white', price: '0.006', seller: '0xA7e1…0d2F' },
+]
+
+
+const ETH_TO_NZD = 6000
+
+function toNZD(price) {
+  return (Number(price) * ETH_TO_NZD).toLocaleString('en-NZ', {
+    style: 'currency',
+    currency: 'NZD',
+  })
+}
+
 function App() {
   const [page, setPage] = useState('browse')
   const [search, setSearch] = useState('')
@@ -10,6 +28,16 @@ function App() {
   const [image, setImage] = useState(null) // the actual file, sent to the API later
   const [preview, setPreview] = useState(null) // temporary URL so we can show it
   const [message, setMessage] = useState('')
+  const [sort, setSort] = useState('')
+
+  const filteredListings = mockListings
+    .filter((item) => item.title.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      if (sort === 'price-low') return Number(a.price) - Number(b.price)
+      if (sort === 'price-high') return Number(b.price) - Number(a.price)
+      if (sort === 'newest') return b.id - a.id 
+      return 0
+    })
 
   function handleImage(e) {
     const file = e.target.files[0]
@@ -93,7 +121,12 @@ function App() {
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </label>
-              <select className="sort-select" aria-label="Sort listings" defaultValue="">
+              <select
+                className="sort-select"
+                aria-label="Sort listings"
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+              >
                 <option value="" disabled>
                   Sort by
                 </option>
@@ -102,6 +135,25 @@ function App() {
                 <option value="price-high">Price: high to low</option>
               </select>
             </div>
+
+            {filteredListings.length === 0 ? (
+              <p className="no-listings">No listings found</p>
+            ) : (
+              <div className="card-grid">
+                {filteredListings.map((item) => (
+                  <article key={item.id} className="card">
+                    <div className="card-image" />
+                    <div className="card-body">
+                      <h3 title={item.title}>{item.title}</h3>
+                      <div className="card-price-box">
+                        <p className="card-price">{item.price} SepoliaETH</p>
+                        <p className="card-nzd">≈ {toNZD(item.price)} NZD</p>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
