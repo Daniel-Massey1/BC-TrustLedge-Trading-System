@@ -131,3 +131,35 @@ describe("TrustLedgeEscrow", function () {
 
     expect(await escrow.pendingWithdrawals(seller.address)).to.equal(PRICE);
   });
+    /*
+   * 5. withdraw
+   * What:   the seller is a malicious contract (EscrowTestParty). When the escrow
+   *         sends it ETH, its receive() function immediately calls withdraw() again.
+   * Attack: re-entrancy. If the contract sent ETH before updating the balance,
+   *         the attacker could keep re-entering and drain other users' money.
+   * Checks: the attacker is paid exactly once; its second, re-entrant call fails
+   *         with OpenZeppelin's ReentrancyGuardReentrantCall error, which proves the
+   *         nonReentrant guard is what stopped it.
+   */
+  it("withdraw blocks a re-entrancy attack and pays out only once", async function () {
+    const { escrow, buyer } = await loadFixture(deployFixture);
+
+    // Set up a normal sale where the seller is the attacker contract
+    const attacker = await ethers.deployContract("EscrowTestParty", [await escrow.getAddress()]);
+    await attacker.createListing(PRICE);
+    await escrow.connect(buyer).createTrade(LISTING_ID, LISTING_HASH, { value: PRICE });
+    await attacker.markShipped(TRADE_ID);
+    await escrow.connect(buyer).confirmReceipt(TRADE_ID);
+
+    // Arm the attack: while receiving ETH, call withdraw() again
+    await attacker.setMode(PartyMode.Reenter, escrow.interface.encodeFunctionData("withdraw"));
+
+    // Only one payment leaves the escrow
+    await expect(attacker.withdraw()).to.changeEtherBalances([escrow, attacker], [-PRICE, PRICE]);
+
+    // The re-entrant call was attempted and blocked by the guard
+    expect(await attacker.reentryAttempted()).to.equal(true);
+    expect(await attacker.reentrySucceeded()).to.equal(false);
+    const selector = escrow.interface.getError("ReentrancyGuardReentrantCall").selector;
+    expect(await attacker.reentryRevertData()).to.equal(selector);
+  });
