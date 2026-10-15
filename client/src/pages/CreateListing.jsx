@@ -12,7 +12,7 @@ function CreateListing({ setPage, setMessage }) {
   const [error, setError] = useState('')
 
   // The connected MetaMask wallet is the seller
-  const { account: sellerWallet } = useWallet()
+  const { account: sellerWallet, isCorrectNetwork } = useWallet()
 
   useEffect(() => {
     return () => {
@@ -156,7 +156,8 @@ function CreateListing({ setPage, setMessage }) {
         <button
           type="submit"
           className="btn submit-btn"
-          disabled={loading}
+          // Posting is blocked on the wrong network, as the wallet banner says
+          disabled={loading || !isCorrectNetwork}
         >
           {loading ? 'Uploading...' : 'Upload listing'}
         </button>
