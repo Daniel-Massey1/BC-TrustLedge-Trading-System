@@ -1,34 +1,87 @@
-import { useState } from 'react'
+
+import { useEffect, useState } from 'react'
 
 function CreateListing({ setPage, setMessage }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [price, setPrice] = useState('')
-  const [image, setImage] = useState(null) 
-  const [preview, setPreview] = useState(null) 
+  const [image, setImage] = useState(null)
+  const [preview, setPreview] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  // Temporary test wallet, not authenticated
+  const sellerWallet = '0x1111111111111111111111111111111111111111'
+
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview)
+    }
+  }, [preview])
 
   function handleImage(e) {
     const file = e.target.files[0]
     if (!file) return
 
-    if (preview) URL.revokeObjectURL(preview) 
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      setError('Please select a JPG or PNG image')
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image must be smaller than 5 MB')
+      return
+    }
+
+    setError('')
     setImage(file)
     setPreview(URL.createObjectURL(file))
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
+    setError('')
 
-    const listing = { title, description, price, image }
+    if (!title.trim() || !price || Number(price) <= 0) {
+      setError('Please enter a valid title and price')
+      return
+    }
 
-    // TODO: send to the API once it exists
-    console.log('New listing:', listing)
+    setLoading(true)
 
-    if (preview) URL.revokeObjectURL(preview)
-    setPage('browse') 
+    try {
+      const formData = new FormData()
 
-    setMessage('Listing created')
-    setTimeout(() => setMessage(''), 3000)
+      formData.append('seller_wallet', sellerWallet)
+      formData.append('title', title.trim())
+      formData.append('description', description.trim())
+      formData.append('category', 'Other')
+      formData.append('price', price)
+
+      if (image) {
+        formData.append('image', image)
+      }
+
+      const response = await fetch('http://localhost:3001/api/listings', {
+        method: 'POST',
+        body: formData
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create listing')
+      }
+
+      setMessage('Listing created successfully!')
+      setPage('browse')
+      setTimeout(() => setMessage(''), 3000)
+    } catch (err) {
+      console.error(err)
+      setError(err.message || 'Could not create listing')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -43,6 +96,7 @@ function CreateListing({ setPage, setMessage }) {
             placeholder="e.g. Watch"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            required
           />
         </label>
 
@@ -61,11 +115,12 @@ function CreateListing({ setPage, setMessage }) {
           <span className="price-input">
             <input
               type="number"
-              min="0"
+              min="0.001"
               step="0.001"
               placeholder="e.g. 0.001"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
+              required
             />
             SepoliaETH
           </span>
@@ -79,12 +134,26 @@ function CreateListing({ setPage, setMessage }) {
             ) : (
               <span>Click to choose an image</span>
             )}
-            <input type="file" accept="image/png, image/jpeg" onChange={handleImage} />
+            <input
+              type="file"
+              accept="image/png, image/jpeg"
+              onChange={handleImage}
+            />
           </span>
         </label>
 
-        <button type="submit" className="btn submit-btn">
-          Upload listing
+        {error && (
+          <p role="alert" style={{ color: 'red' }}>
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          className="btn submit-btn"
+          disabled={loading}
+        >
+          {loading ? 'Uploading...' : 'Upload listing'}
         </button>
       </form>
     </>
