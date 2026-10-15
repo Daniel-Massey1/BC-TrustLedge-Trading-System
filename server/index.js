@@ -13,7 +13,8 @@ const PORT = 3001;
 
 // Middleware
 app.use(cors({
-    origin: "http://localhost:5173"
+    // Any local frontend port (Vite moves to 5174+ if 5173 is already in use)
+    origin: /^http:\/\/localhost:\d+$/
 }));
 
 app.use(express.json());
