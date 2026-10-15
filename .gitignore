@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.*
+!.env.example
+ca.pem
+trustledge-backup.sql
+trustledge-cloud.sql
+server/uploads/
+server/uploads-backup.txt
+test-price.json
+server/import-cloud.js
