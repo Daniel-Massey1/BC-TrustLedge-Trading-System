@@ -280,6 +280,52 @@ app.post("/api/listings", upload.single("image"), async (req, res) => {
     }
 });
 
+ // DELETE listing (soft delete)
+app.delete("/api/listings/:id", async (req, res) => {
+    try {
+        const listingId = Number(req.params.id);
+
+        if (!Number.isSafeInteger(listingId) || listingId <= 0) {
+            return res.status(400).json({
+                error: "Invalid listing ID"
+            });
+        }
+
+        // Temporary prototype protection:
+        // Disabled until wallet authentication is implemented.
+        if (process.env.ENABLE_TEST_DELETE !== "true") {
+            return res.status(403).json({
+                error: "Listing deletion is disabled until seller authentication is implemented"
+            });
+        }
+
+        const [result] = await db.query(
+            `UPDATE listings
+             SET status = 'cancelled'
+             WHERE listing_id = ? AND status = 'active'`,
+            [listingId]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                error: "Active listing not found"
+            });
+        }
+
+        res.json({
+            message: "Listing cancelled successfully",
+            listing_id: listingId
+        });
+
+    } catch (error) {
+        console.error("Error cancelling listing:", error);
+        res.status(500).json({
+            error: "Failed to cancel listing"
+        });
+    }
+});
+
+
 // Handle image upload errors
 app.use((err, req, res, next) => {
     if (err instanceof multer.MulterError) {
