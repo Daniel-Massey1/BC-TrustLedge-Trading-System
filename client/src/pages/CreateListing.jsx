@@ -97,7 +97,6 @@ function CreateListing({ setPage, setMessage }) {
             placeholder="e.g. Watch"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            required
           />
         </label>
 
