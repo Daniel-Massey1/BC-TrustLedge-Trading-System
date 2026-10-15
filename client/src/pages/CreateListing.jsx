@@ -1,5 +1,6 @@
-
 import { useEffect, useState } from 'react'
+import { useWallet } from '../wallet/useWallet'
+import { LoginPage } from '../wallet/LoginPage'
 
 function CreateListing({ setPage, setMessage }) {
   const [title, setTitle] = useState('')
@@ -10,8 +11,8 @@ function CreateListing({ setPage, setMessage }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Temporary test wallet, not authenticated
-  const sellerWallet = '0x1111111111111111111111111111111111111111'
+  // The connected MetaMask wallet is the seller
+  const { account: sellerWallet } = useWallet()
 
   useEffect(() => {
     return () => {
@@ -83,6 +84,9 @@ function CreateListing({ setPage, setMessage }) {
       setLoading(false)
     }
   }
+
+  // Only logged-in users can post a listing (FR2)
+  if (!sellerWallet) return <LoginPage action="create a listing" />
 
   return (
     <>
