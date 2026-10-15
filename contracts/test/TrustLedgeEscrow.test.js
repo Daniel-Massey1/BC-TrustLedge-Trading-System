@@ -86,4 +86,26 @@ describe("TrustLedgeEscrow", function () {
   });
 
 });
+  /*
+   * 3. markShipped
+   * What:   someone who is not part of the trade tries to mark it as shipped,
+   *         then the real seller does.
+   * Attack: if anyone could mark a trade shipped, they could stop the buyer from
+   *         cancelling and getting a refund (refunds are only allowed before shipping).
+   * Checks: the outsider is rejected with NotAuthorised; the seller succeeds and
+   *         the tracking reference is recorded in the TradeShipped event.
+   */
+  it("markShipped can only be called by the seller", async function () {
+    const { escrow, buyer, seller, other } = await loadFixture(deployFixture);
+    await escrow.connect(seller).createListing(PRICE);
+    await escrow.connect(buyer).createTrade(LISTING_ID, LISTING_HASH, { value: PRICE });
 
+    await expect(escrow.connect(other).markShipped(TRADE_ID, "X")).to.be.revertedWithCustomError(
+      escrow,
+      "NotAuthorised"
+    );
+
+    await expect(escrow.connect(seller).markShipped(TRADE_ID, "NZP-123"))
+      .to.emit(escrow, "TradeShipped")
+      .withArgs(TRADE_ID, "NZP-123");
+  });
