@@ -4,6 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../App'
 import { WalletProvider } from '../wallet/WalletProvider'
 import { TEST_WALLET } from './setup'
+import { registerListing } from '../wallet/escrow'
+
+// Fake the escrow contract: registering seller and price returns contract listing id 7
+vi.mock('../wallet/escrow', async (importOriginal) => ({
+  ...(await importOriginal()),
+  registerListing: vi.fn(async () => 7),
+}))
 
 
 beforeEach(() => {
@@ -15,7 +22,10 @@ beforeEach(() => {
   }))
 })
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.clearAllMocks()
+})
 
 
 function postRequests() {
@@ -55,6 +65,9 @@ describe('FR2: Create listing', () => {
     expect(sent.get('price')).toBe('0.05')
     // the listing is posted under the connected MetaMask wallet
     expect(sent.get('seller_wallet')).toBe(TEST_WALLET)
+    // seller and price were registered with the contract, and its id saved with the listing
+    expect(registerListing).toHaveBeenCalledWith('0.05')
+    expect(sent.get('chain_listing_id')).toBe('7')
   })
 
   it('Test 2: empty form posting, Should fail', async () => {
@@ -66,5 +79,6 @@ describe('FR2: Create listing', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Create listing' })).toBeInTheDocument()
     expect(postRequests()).toHaveLength(0)
+    expect(registerListing).not.toHaveBeenCalled()
   })
 })

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useWallet } from '../wallet/useWallet'
 import { LoginPage } from '../wallet/LoginPage'
+import { registerListing, txErrorMessage } from '../wallet/escrow'
 
 function CreateListing({ setPage, setMessage }) {
   const [title, setTitle] = useState('')
@@ -51,6 +52,15 @@ function CreateListing({ setPage, setMessage }) {
     setLoading(true)
 
     try {
+      // Register seller and price with the escrow contract (one MetaMask confirmation).
+      // Title, description and image are only saved in the database.
+      let chainListingId
+      try {
+        chainListingId = await registerListing(price)
+      } catch (err) {
+        throw new Error(txErrorMessage(err))
+      }
+
       const formData = new FormData()
 
       formData.append('seller_wallet', sellerWallet)
@@ -58,6 +68,7 @@ function CreateListing({ setPage, setMessage }) {
       formData.append('description', description.trim())
       formData.append('category', 'Other')
       formData.append('price', price)
+      formData.append('chain_listing_id', chainListingId)
 
       if (image) {
         formData.append('image', image)
@@ -159,7 +170,7 @@ function CreateListing({ setPage, setMessage }) {
           // Posting is blocked on the wrong network, as the wallet banner says
           disabled={loading || !isCorrectNetwork}
         >
-          {loading ? 'Uploading...' : 'Upload listing'}
+          {loading ? 'Confirm in MetaMask…' : 'Upload listing'}
         </button>
       </form>
     </>

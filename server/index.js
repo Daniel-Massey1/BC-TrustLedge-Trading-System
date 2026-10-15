@@ -6,6 +6,7 @@ const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const db = require("./db");
+const { readChainListing, parseEther } = require("./escrow");
 
 const app = express();
 const PORT = 3001;
@@ -171,7 +172,8 @@ app.post("/api/listings", upload.single("image"), async (req, res) => {
             title,
             description,
             category,
-            price
+            price,
+            chain_listing_id
         } = req.body;
 
         const numericPrice = Number(price);
@@ -205,6 +207,29 @@ app.post("/api/listings", upload.single("image"), async (req, res) => {
 
         const wallet = seller_wallet.toLowerCase();
 
+        // The seller registered the listing with the escrow contract first.
+        // Check the contract agrees on seller and price, so the database
+        // can't advertise a different price from the one buyers must pay.
+        const chainListingId = Number(chain_listing_id);
+
+        if (!Number.isSafeInteger(chainListingId) || chainListingId <= 0) {
+            return res.status(400).json({
+                error: "Listing must be registered with the escrow contract"
+            });
+        }
+
+        const onChain = await readChainListing(chainListingId);
+
+        if (
+            onChain.status !== "active" ||
+            onChain.seller !== wallet ||
+            onChain.price !== parseEther(String(price))
+        ) {
+            return res.status(400).json({
+                error: "Escrow contract listing does not match this seller and price"
+            });
+        }
+
         const connection = await db.getConnection();
 
         try {
@@ -220,14 +245,15 @@ app.post("/api/listings", upload.single("image"), async (req, res) => {
             // Insert listing into MySQL
             const [result] = await connection.query(
                 `INSERT INTO listings
-                 (seller_wallet, title, description, category, price)
-                 VALUES (?, ?, ?, ?, ?)`,
+                 (seller_wallet, title, description, category, price, chain_listing_id)
+                 VALUES (?, ?, ?, ?, ?, ?)`,
                 [
                     wallet,
                     title.trim(),
                     description || null,
                     category || "Other",
-                    price
+                    price,
+                    chainListingId
                 ]
             );
 
@@ -277,6 +303,87 @@ app.post("/api/listings", upload.single("image"), async (req, res) => {
         if (uploadedFile && res.statusCode !== 201) {
             fs.promises.unlink(uploadedFile.path).catch(() => {});
         }
+    }
+});
+
+// GET a listing by its escrow contract id (used to show trades in My Account)
+app.get("/api/chain-listings/:chainId", async (req, res) => {
+    try {
+        const chainListingId = Number(req.params.chainId);
+
+        if (!Number.isSafeInteger(chainListingId) || chainListingId <= 0) {
+            return res.status(400).json({
+                error: "Invalid listing ID"
+            });
+        }
+
+        const [rows] = await db.query(`
+            SELECT l.*,
+                (
+                    SELECT li.file_path
+                    FROM listing_images li
+                    WHERE li.listing_id = l.listing_id
+                    ORDER BY li.sort_order, li.image_id
+                    LIMIT 1
+                ) AS image_url
+            FROM listings l
+            WHERE l.chain_listing_id = ?
+        `, [chainListingId]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({
+                error: "Listing not found"
+            });
+        }
+
+        res.json(rows[0]);
+
+    } catch (error) {
+        console.error("Error retrieving listing:", error);
+
+        res.status(500).json({
+            error: "Failed to retrieve listing"
+        });
+    }
+});
+
+// POST sync: copy a listing's status from the escrow contract into the database.
+// Called after buy / cancel / confirm. Anyone can call it safely, because
+// the new status comes from the contract, not from the request.
+app.post("/api/chain-listings/:chainId/sync", async (req, res) => {
+    try {
+        const chainListingId = Number(req.params.chainId);
+
+        if (!Number.isSafeInteger(chainListingId) || chainListingId <= 0) {
+            return res.status(400).json({
+                error: "Invalid listing ID"
+            });
+        }
+
+        const onChain = await readChainListing(chainListingId);
+
+        if (!onChain.status) {
+            return res.status(404).json({
+                error: "Listing not found in the escrow contract"
+            });
+        }
+
+        await db.query(
+            "UPDATE listings SET status = ? WHERE chain_listing_id = ?",
+            [onChain.status, chainListingId]
+        );
+
+        res.json({
+            chain_listing_id: chainListingId,
+            status: onChain.status
+        });
+
+    } catch (error) {
+        console.error("Error syncing listing:", error);
+
+        res.status(500).json({
+            error: "Failed to sync listing"
+        });
     }
 });
 

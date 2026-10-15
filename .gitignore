@@ -9,3 +9,7 @@ server/uploads/
 server/uploads-backup.txt
 test-price.json
 server/import-cloud.js
+# Hardhat build output
+contracts/artifacts/
+contracts/cache/
+contracts/gas-report.txt

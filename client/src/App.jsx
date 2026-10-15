@@ -36,7 +36,7 @@ function App() {
           </div>
         )}
 
-        {page === 'browse' && <Browse />}
+        {page === 'browse' && <Browse setMessage={setMessage} />}
         {page === 'create' && <CreateListing setPage={setPage} setMessage={setMessage} />}
         {page === 'account' && <MyAccount />}
         {page === 'login' && <LoginPage onSuccess={() => setPage('account')} />}

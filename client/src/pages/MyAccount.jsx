@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import { useWallet } from '../wallet/useWallet'
 import { RequireWallet } from '../wallet/RequireWallet'
 import { WalletCards } from '../wallet/WalletCards'
+import { cancelListing, readCompletedTrades, txErrorMessage } from '../wallet/escrow'
+import MyTrades from './MyTrades'
 
 const API_URL = 'http://localhost:3001'
 
@@ -28,6 +30,27 @@ function AccountContent({ wallet }) {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [deletingId, setDeletingId] = useState(null)
+  const [completedTrades, setCompletedTrades] = useState(null)
+  const { isCorrectNetwork, refreshBalance } = useWallet()
+  // Bumped after a transaction so listings and the trade count reload
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  function handleTradeChange() {
+    setRefreshKey((n) => n + 1)
+    refreshBalance()
+  }
+
+  // FR8: read the completed trades count from the escrow contract
+  useEffect(() => {
+    if (!isCorrectNetwork) return
+    let cancelled = false
+    readCompletedTrades(wallet)
+      .then((count) => !cancelled && setCompletedTrades(count))
+      .catch((err) => console.error('Error reading completed trades:', err))
+    return () => {
+      cancelled = true
+    }
+  }, [wallet, isCorrectNetwork, refreshKey])
 
   useEffect(() => {
     async function loadListings() {
@@ -50,9 +73,10 @@ function AccountContent({ wallet }) {
     }
 
     loadListings()
-  }, [wallet])
+  }, [wallet, refreshKey])
 
-  async function handleDelete(listingId) {
+  async function handleDelete(item) {
+    const listingId = item.listing_id
     const confirmed = window.confirm(
       'Are you sure you want to cancel this listing?'
     )
@@ -64,15 +88,26 @@ function AccountContent({ wallet }) {
     setMessage('')
 
     try {
-      const response = await fetch(
-        `${API_URL}/api/listings/${listingId}`,
-        { method: 'DELETE' }
-      )
+      if (item.chain_listing_id) {
+        // Cancel in the escrow contract, then copy the status to the database
+        try {
+          await cancelListing(item.chain_listing_id)
+        } catch (err) {
+          throw new Error(txErrorMessage(err))
+        }
+        await fetch(`${API_URL}/api/chain-listings/${item.chain_listing_id}/sync`, { method: 'POST' })
+      } else {
+        // Older listings that were never registered with the contract
+        const response = await fetch(
+          `${API_URL}/api/listings/${listingId}`,
+          { method: 'DELETE' }
+        )
 
-      const data = await response.json()
+        const data = await response.json()
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to cancel listing')
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to cancel listing')
+        }
       }
 
       setListings((previous) =>
@@ -93,9 +128,9 @@ function AccountContent({ wallet }) {
 
   return (
     <>
-      <WalletCards />
+      <WalletCards completedTrades={isCorrectNetwork ? completedTrades : null} />
 
-      <h3>Selling</h3>
+      <h3>My listings</h3>
 
       {message && (
         <p role="status" style={{ color: 'green' }}>
@@ -150,7 +185,7 @@ function AccountContent({ wallet }) {
                     color: 'white',
                     marginTop: '10px'
                   }}
-                  onClick={() => handleDelete(item.listing_id)}
+                  onClick={() => handleDelete(item)}
                   disabled={deletingId !== null}
                 >
                   {deletingId === item.listing_id
@@ -163,8 +198,11 @@ function AccountContent({ wallet }) {
         </div>
       )}
 
-      <h3>Buying</h3>
-      <div className="box trade-box" />
+      {isCorrectNetwork ? (
+        <MyTrades wallet={wallet} onChange={handleTradeChange} />
+      ) : (
+        <div className="box trade-box">Switch MetaMask to Sepolia to see your trades.</div>
+      )}
     </>
   )
 }

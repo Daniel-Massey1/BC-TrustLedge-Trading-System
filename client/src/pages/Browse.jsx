@@ -1,8 +1,12 @@
 
 import { useEffect, useState } from 'react'
 import { toNZD } from '../data'
+import { useWallet } from '../wallet/useWallet'
+import { buyListing, txErrorMessage } from '../wallet/escrow'
 
-function Browse() {
+const API_URL = 'http://localhost:3001'
+
+function Browse({ setMessage }) {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState('')
   const [selected, setSelected] = useState(null)
@@ -10,6 +14,9 @@ function Browse() {
   const [listings, setListings] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [buying, setBuying] = useState(false)
+  const [buyError, setBuyError] = useState('')
+  const { account, isCorrectNetwork } = useWallet()
 
   // Load listings from the backend API
   useEffect(() => {
@@ -38,11 +45,47 @@ function Browse() {
   useEffect(() => {
     if (!selected) return
 
-    const onKey = (e) => e.key === 'Escape' && setSelected(null)
+    const onKey = (e) => e.key === 'Escape' && !buying && closeDetails()
     window.addEventListener('keydown', onKey)
 
     return () => window.removeEventListener('keydown', onKey)
-  }, [selected])
+  }, [selected, buying])
+
+  function closeDetails() {
+    setSelected(null)
+    setBuyError('')
+  }
+
+  // FR4: pay the price into the escrow contract
+  async function handleBuy() {
+    setBuying(true)
+    setBuyError('')
+
+    try {
+      await buyListing(selected)
+
+      // Copy the new status (reserved) from the contract into the database
+      await fetch(`${API_URL}/api/chain-listings/${selected.chain_listing_id}/sync`, { method: 'POST' })
+
+      setListings((previous) => previous.filter((item) => item.listing_id !== selected.listing_id))
+      closeDetails()
+      setMessage?.('Payment locked in escrow. Track it in My Account.')
+      setTimeout(() => setMessage?.(''), 4000)
+    } catch (err) {
+      setBuyError(txErrorMessage(err))
+    } finally {
+      setBuying(false)
+    }
+  }
+
+  // Why the Buy button is disabled, or '' if the user can buy
+  function buyBlockedReason(item) {
+    if (!item.chain_listing_id) return 'This listing was posted before payments were enabled.'
+    if (!account) return 'Log in with MetaMask to buy.'
+    if (!isCorrectNetwork) return 'Switch MetaMask to Sepolia to buy.'
+    if (item.seller_wallet?.toLowerCase() === account.toLowerCase()) return 'This is your listing.'
+    return ''
+  }
 
   // Search and sort listings
   const filteredListings = listings
@@ -146,7 +189,7 @@ function Browse() {
       {selected && (
         <div
           className="modal-backdrop"
-          onClick={() => setSelected(null)}
+          onClick={() => !buying && closeDetails()}
         >
           <div
             className="modal"
@@ -158,7 +201,8 @@ function Browse() {
             <button
               className="modal-close"
               aria-label="Close"
-              onClick={() => setSelected(null)}
+              onClick={closeDetails}
+              disabled={buying}
             >
               ×
             </button>
@@ -195,6 +239,22 @@ function Browse() {
                 <p className="seller-address">
                   {selected.seller_wallet}
                 </p>
+              </div>
+
+              <div className="modal-section">
+                <button
+                  className="btn"
+                  onClick={handleBuy}
+                  disabled={buying || Boolean(buyBlockedReason(selected))}
+                >
+                  {buying ? 'Confirm in MetaMask…' : `Buy for ${selected.price} SepoliaETH`}
+                </button>
+                {buyBlockedReason(selected) && <p className="buy-note">{buyBlockedReason(selected)}</p>}
+                {buyError && (
+                  <p role="alert" style={{ color: 'red' }}>
+                    {buyError}
+                  </p>
+                )}
               </div>
             </div>
           </div>
