@@ -40,6 +40,7 @@ function CreateListing({ setPage, setMessage }) {
           Title
           <input
             type="text"
+            required
             placeholder="e.g. Watch"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -50,6 +51,7 @@ function CreateListing({ setPage, setMessage }) {
           Description
           <textarea
             rows="5"
+            required
             placeholder="Insert description here"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -61,7 +63,8 @@ function CreateListing({ setPage, setMessage }) {
           <span className="price-input">
             <input
               type="number"
-              min="0"
+              min="0.001"
+              required
               step="0.001"
               placeholder="e.g. 0.001"
               value={price}
