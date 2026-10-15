@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../App'
+import { WalletProvider } from '../wallet/WalletProvider'
+import { TEST_WALLET } from './setup'
 
 
 beforeEach(() => {
@@ -23,8 +25,14 @@ function postRequests() {
 // tests for FR2
 describe('FR2: Create listing', () => {
   async function openCreatePage(user) {
-    render(<App />)
+    render(
+      <WalletProvider>
+        <App />
+      </WalletProvider>,
+    )
     await user.click(screen.getByRole('button', { name: 'Create Listing' }))
+    // wait for the fake MetaMask wallet to connect so the form shows
+    await screen.findByRole('heading', { name: 'Create listing' })
   }
 
   it('Test 1: a completed form posting, Should succeeded', async () => {
@@ -45,6 +53,8 @@ describe('FR2: Create listing', () => {
     expect(sent.get('title')).toBe('Road bike')
     expect(sent.get('description')).toBe('Size 54, recently serviced.')
     expect(sent.get('price')).toBe('0.05')
+    // the listing is posted under the connected MetaMask wallet
+    expect(sent.get('seller_wallet')).toBe(TEST_WALLET)
   })
 
   it('Test 2: empty form posting, Should fail', async () => {

@@ -1,12 +1,28 @@
 
 import { useEffect, useState } from 'react'
+import { useWallet } from '../wallet/useWallet'
+import { RequireWallet } from '../wallet/RequireWallet'
+import { WalletCards } from '../wallet/WalletCards'
 
 const API_URL = 'http://localhost:3001'
 
-// Temporary test wallet until MetaMask login is integrated
-const TEST_WALLET = '0x1111111111111111111111111111111111111111'
-
 function MyAccount() {
+  const { account } = useWallet()
+
+  return (
+    <div className="account">
+      <h2>My account</h2>
+
+      {/* Shows the login page instead if no wallet is connected */}
+      <RequireWallet action="view your account">
+        {/* key resets the page when the user switches account in MetaMask */}
+        <AccountContent key={account} wallet={account} />
+      </RequireWallet>
+    </div>
+  )
+}
+
+function AccountContent({ wallet }) {
   const [listings, setListings] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -17,7 +33,7 @@ function MyAccount() {
     async function loadListings() {
       try {
         const response = await fetch(
-          `${API_URL}/api/sellers/${TEST_WALLET}/listings`
+          `${API_URL}/api/sellers/${wallet}/listings`
         )
 
         if (!response.ok) {
@@ -34,7 +50,7 @@ function MyAccount() {
     }
 
     loadListings()
-  }, [])
+  }, [wallet])
 
   async function handleDelete(listingId) {
     const confirmed = window.confirm(
@@ -76,14 +92,8 @@ function MyAccount() {
   }
 
   return (
-    <div className="account">
-      <h2>My account</h2>
-
-      <div className="account-cards">
-        <div className="box">Wallet</div>
-        <div className="box">Network</div>
-        <div className="box">Completed trades</div>
-      </div>
+    <>
+      <WalletCards />
 
       <h3>Selling</h3>
 
@@ -155,7 +165,7 @@ function MyAccount() {
 
       <h3>Buying</h3>
       <div className="box trade-box" />
-    </div>
+    </>
   )
 }
 
