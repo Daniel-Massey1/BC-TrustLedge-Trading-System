@@ -65,6 +65,25 @@ describe("TrustLedgeEscrow", function () {
     expect(listing.status).to.equal(ListingStatus.Active);
   });
 
-  // Tests 2-5 go here, ABOVE the closing line below
+ 
+    /*
+   * 2. createTrade
+   * What:   an attacker tries to "buy" a listing for 1 wei (almost zero ETH).
+   * Attack: in the old contract any payment above 0 was accepted and locked the
+   *         listing, so anyone could block every item on the market for a few cents of gas.
+   * Checks: the payment is rejected with WrongPayment, and the listing stays
+   *         Active so real buyers can still purchase it.
+   */
+  it("createTrade rejects a 1 wei payment (the listing-lock attack)", async function () {
+    const { escrow, seller, other } = await loadFixture(deployFixture);
+    await escrow.connect(seller).createListing(PRICE);
+
+    await expect(
+      escrow.connect(other).createTrade(LISTING_ID, LISTING_HASH, { value: 1 })
+    ).to.be.revertedWithCustomError(escrow, "WrongPayment");
+
+    expect((await escrow.getListing(LISTING_ID)).status).to.equal(ListingStatus.Active);
+  });
 
 });
+
