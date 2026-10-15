@@ -109,3 +109,25 @@ describe("TrustLedgeEscrow", function () {
       .to.emit(escrow, "TradeShipped")
       .withArgs(TRADE_ID, "NZP-123");
   });
+ /*
+   * 4. confirmReceipt
+   * What:   the buyer confirms they received the item, then tries to confirm again.
+   * Bug:    without a status check, a second confirm could credit the seller twice
+   *         and pay out ETH that belongs to other trades in the escrow.
+   * Checks: the first confirm credits the seller exactly the price (PaymentCredited);
+   *         the second is rejected with WrongStatus; the seller is owed the price only once.
+   */
+  it("confirmReceipt pays the seller only once (double confirm is rejected)", async function () {
+    const { escrow, buyer, seller } = await loadFixture(shippedTradeFixture);
+
+    await expect(escrow.connect(buyer).confirmReceipt(TRADE_ID))
+      .to.emit(escrow, "PaymentCredited")
+      .withArgs(seller.address, PRICE);
+
+    await expect(escrow.connect(buyer).confirmReceipt(TRADE_ID)).to.be.revertedWithCustomError(
+      escrow,
+      "WrongStatus"
+    );
+
+    expect(await escrow.pendingWithdrawals(seller.address)).to.equal(PRICE);
+  });
