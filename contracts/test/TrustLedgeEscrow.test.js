@@ -65,8 +65,7 @@ describe("TrustLedgeEscrow", function () {
     expect(listing.status).to.equal(ListingStatus.Active);
   });
 
- 
-    /*
+  /*
    * 2. createTrade
    * What:   an attacker tries to "buy" a listing for 1 wei (almost zero ETH).
    * Attack: in the old contract any payment above 0 was accepted and locked the
@@ -85,7 +84,6 @@ describe("TrustLedgeEscrow", function () {
     expect((await escrow.getListing(LISTING_ID)).status).to.equal(ListingStatus.Active);
   });
 
-});
   /*
    * 3. markShipped
    * What:   someone who is not part of the trade tries to mark it as shipped,
@@ -109,7 +107,8 @@ describe("TrustLedgeEscrow", function () {
       .to.emit(escrow, "TradeShipped")
       .withArgs(TRADE_ID, "NZP-123");
   });
- /*
+
+  /*
    * 4. confirmReceipt
    * What:   the buyer confirms they received the item, then tries to confirm again.
    * Bug:    without a status check, a second confirm could credit the seller twice
@@ -131,7 +130,8 @@ describe("TrustLedgeEscrow", function () {
 
     expect(await escrow.pendingWithdrawals(seller.address)).to.equal(PRICE);
   });
-    /*
+
+  /*
    * 5. withdraw
    * What:   the seller is a malicious contract (EscrowTestParty). When the escrow
    *         sends it ETH, its receive() function immediately calls withdraw() again.
@@ -163,3 +163,4 @@ describe("TrustLedgeEscrow", function () {
     const selector = escrow.interface.getError("ReentrancyGuardReentrantCall").selector;
     expect(await attacker.reentryRevertData()).to.equal(selector);
   });
+});
