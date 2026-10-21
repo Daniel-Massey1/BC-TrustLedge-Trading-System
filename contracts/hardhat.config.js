@@ -21,11 +21,12 @@ module.exports = {
   },
   // hardhat-gas-reporter (bundled with hardhat-toolbox). Every `npm test` run
   // writes gas used per function and per deployment to gas-report.txt.
+  // The bug demo (npm run test:bugs) is skipped so it can't overwrite the real report.
   gasReporter: {
-    enabled: true,
+    enabled: !process.argv.some((arg) => arg.includes("test-bugs")),
     outputFile: "gas-report.txt",
     noColors: true,
-    excludeContracts: ["EscrowTestParty"],
+    excludeContracts: ["EscrowTestParty", "BuggyEscrow"],
   },
   etherscan: {
     apiKey: ETHERSCAN_API_KEY || "",
