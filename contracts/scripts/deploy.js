@@ -33,6 +33,8 @@ async function main() {
     path.join(__dirname, "../../server/src/contracts/TrustLedgeEscrow.json"),
   ];
   for (const file of targets) {
+    // The contracts/ folders don't exist until the first deployment
+    fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, output);
     console.log(`Wrote ${path.relative(process.cwd(), file)}`);
   }
