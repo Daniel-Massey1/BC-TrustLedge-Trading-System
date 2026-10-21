@@ -107,9 +107,11 @@ contract TrustLedgeEscrow is ReentrancyGuard {
     error TransferFailed(); // recipient rejected the ETH
     error NothingToWithdraw(); // caller has no balance
 
-    // ------------------------------------------------------------------
-    // Listings
-    // ------------------------------------------------------------------
+    // ==================================================================
+    // 1. LISTING
+    //    Seller fixes the price on-chain, so no one can underpay.
+    //    Functions: createListing, cancelListing
+    // ==================================================================
 
     /// @notice Seller registers a listing and its price. The id is assigned
     ///         here so nobody can claim another seller's listing id first.
@@ -139,9 +141,11 @@ contract TrustLedgeEscrow is ReentrancyGuard {
         emit ListingCancelled(listingId);
     }
 
-    // ------------------------------------------------------------------
-    // Trades
-    // ------------------------------------------------------------------
+    // ==================================================================
+    // 2. ESCROW PAYMENT
+    //    Buyer's ETH is locked in the contract, not sent to the seller.
+    //    Function: createTrade
+    // ==================================================================
 
     /// @notice Buyer locks exactly the registered listing price in escrow.
     function createTrade(uint256 listingId, bytes32 listingHash)
@@ -171,6 +175,12 @@ contract TrustLedgeEscrow is ReentrancyGuard {
 
         emit TradeCreated(tradeId, listingId, msg.sender, l.seller, msg.value, listingHash);
     }
+
+    // ==================================================================
+    // 3. DELIVERY
+    //    Money moves only after shipping and buyer confirmation.
+    //    Functions: markShipped, confirmReceipt
+    // ==================================================================
 
     /// @notice Seller marks the item as shipped. Tracking ref is only emitted, not stored.
     function markShipped(uint256 tradeId, string calldata trackingRef) external {
@@ -202,6 +212,12 @@ contract TrustLedgeEscrow is ReentrancyGuard {
         _credit(t.seller, t.amount);
     }
 
+    // ==================================================================
+    // 4. REFUNDS & PAYOUTS
+    //    Safe refunds before shipping; payees pull their own ETH.
+    //    Functions: cancelTrade, withdraw, withdrawTo
+    // ==================================================================
+
     /// @notice Seller may cancel any time before shipping; buyer only after BUYER_CANCEL_DELAY.
     ///         The listing becomes active again so another buyer can purchase it.
     function cancelTrade(uint256 tradeId) external {
@@ -223,10 +239,6 @@ contract TrustLedgeEscrow is ReentrancyGuard {
         // Pull payment: the buyer collects the refund later with withdraw()
         _credit(t.buyer, t.amount);
     }
-
-    // ------------------------------------------------------------------
-    // Withdrawals (pull payments)
-    // ------------------------------------------------------------------
 
     /// @notice Sends the caller everything they are owed.
     /// @dev nonReentrant: a contract receiving the ETH can't call back into withdraw.
