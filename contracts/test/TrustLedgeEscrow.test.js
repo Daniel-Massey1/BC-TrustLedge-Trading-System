@@ -1,9 +1,9 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
-const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
+const { loadFixture, time } = require("@nomicfoundation/hardhat-network-helpers");
 
 /*
- * TrustLedgeEscrow tests: one key test per main contract function.
+ * TrustLedgeEscrow tests.
  *
  * Each test checks one rule that protects users' money:
  *   1. createListing  - the price is stored on-chain, so the contract (not the buyer) decides what to pay
@@ -11,6 +11,11 @@ const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
  *   3. markShipped    - only the seller can say the item was shipped
  *   4. confirmReceipt - the seller can't be paid twice for one trade
  *   5. withdraw       - a malicious contract can't drain the escrow with a re-entrancy attack
+ *   6. createListing  - a listing can't be free (price 0)
+ *   7. createTrade    - a seller can't buy their own listing
+ *   8. cancelListing  - only the seller can cancel, and not while a buyer has paid
+ *   9. cancelTrade    - the buyer must wait 7 days, then gets a full refund
+ *  10. withdrawTo     - a seller whose wallet rejects ETH can still collect the payment
  *
  * Every test starts from a fresh copy of a local blockchain (loadFixture),
  * so tests never affect each other.
@@ -162,5 +167,132 @@ describe("TrustLedgeEscrow", function () {
     expect(await attacker.reentrySucceeded()).to.equal(false);
     const selector = escrow.interface.getError("ReentrancyGuardReentrantCall").selector;
     expect(await attacker.reentryRevertData()).to.equal(selector);
+  });
+
+  /*
+   * 6. createListing (price 0)
+   * What:   a seller tries to list an item for 0 ETH.
+   * Why:    a free listing could be "bought" for nothing, which would make the
+   *         exact-price check from test 2 meaningless.
+   * Checks: the call is rejected with InvalidPrice and no listing is created.
+   */
+  it("createListing rejects a price of 0", async function () {
+    const { escrow, seller } = await loadFixture(deployFixture);
+
+    await expect(escrow.connect(seller).createListing(0)).to.be.revertedWithCustomError(
+      escrow,
+      "InvalidPrice"
+    );
+
+    expect((await escrow.getListing(LISTING_ID)).status).to.equal(ListingStatus.None);
+  });
+
+  /*
+   * 7. createTrade (seller buys own listing)
+   * What:   the seller tries to buy their own listing.
+   * Attack: a seller could "buy" their own items and confirm them to inflate the
+   *         completed-trades count that is shown as their reputation.
+   * Checks: the purchase is rejected with InvalidSeller and the listing stays Active.
+   */
+  it("createTrade stops a seller buying their own listing", async function () {
+    const { escrow, seller } = await loadFixture(deployFixture);
+    await escrow.connect(seller).createListing(PRICE);
+
+    await expect(
+      escrow.connect(seller).createTrade(LISTING_ID, LISTING_HASH, { value: PRICE })
+    ).to.be.revertedWithCustomError(escrow, "InvalidSeller");
+
+    expect((await escrow.getListing(LISTING_ID)).status).to.equal(ListingStatus.Active);
+  });
+
+  /*
+   * 8. cancelListing
+   * What:   an outsider tries to cancel someone else's listing; later the seller
+   *         tries to cancel a listing a buyer has already paid for.
+   * Attack: anyone could remove other sellers' items from the market, or a seller
+   *         could cancel a paid listing and leave the buyer's trade in a broken state.
+   * Checks: the outsider gets NotAuthorised; once a buyer has paid, the seller gets
+   *         ListingNotActive and the listing stays Locked.
+   */
+  it("cancelListing is seller-only and blocked once a buyer has paid", async function () {
+    const { escrow, buyer, seller, other } = await loadFixture(deployFixture);
+    await escrow.connect(seller).createListing(PRICE);
+
+    await expect(escrow.connect(other).cancelListing(LISTING_ID)).to.be.revertedWithCustomError(
+      escrow,
+      "NotAuthorised"
+    );
+
+    await escrow.connect(buyer).createTrade(LISTING_ID, LISTING_HASH, { value: PRICE });
+
+    await expect(escrow.connect(seller).cancelListing(LISTING_ID)).to.be.revertedWithCustomError(
+      escrow,
+      "ListingNotActive"
+    );
+    expect((await escrow.getListing(LISTING_ID)).status).to.equal(ListingStatus.Locked);
+  });
+
+  /*
+   * 9. cancelTrade (buyer refund after 7 days)
+   * What:   the buyer tries to cancel straight after paying, then again after
+   *         the 7-day waiting period has passed without shipment.
+   * Why:    the buyer must not be able to cancel while the seller is still packing
+   *         the item, but must get their money back if the seller never ships.
+   * Checks: the early cancel is rejected with NotAuthorised; after 7 days the buyer
+   *         is credited the full price and the listing is back on sale (Active).
+   */
+  it("cancelTrade lets the buyer get a refund only after 7 days", async function () {
+    const { escrow, buyer, seller } = await loadFixture(deployFixture);
+    await escrow.connect(seller).createListing(PRICE);
+    await escrow.connect(buyer).createTrade(LISTING_ID, LISTING_HASH, { value: PRICE });
+
+    await expect(escrow.connect(buyer).cancelTrade(TRADE_ID)).to.be.revertedWithCustomError(
+      escrow,
+      "NotAuthorised"
+    );
+
+    // Move the local blockchain's clock forward by the waiting period
+    await time.increase(await escrow.BUYER_CANCEL_DELAY());
+
+    await expect(escrow.connect(buyer).cancelTrade(TRADE_ID))
+      .to.emit(escrow, "PaymentCredited")
+      .withArgs(buyer.address, PRICE);
+
+    expect(await escrow.pendingWithdrawals(buyer.address)).to.equal(PRICE);
+    expect((await escrow.getListing(LISTING_ID)).status).to.equal(ListingStatus.Active);
+  });
+
+  /*
+   * 10. withdrawTo (seller wallet rejects ETH)
+   * What:   the seller is a contract that refuses to receive ETH (EscrowTestParty
+   *         in Reject mode). It tries withdraw(), then withdrawTo() another address.
+   * Bug:    in the first version the payment was pushed to the seller inside
+   *         confirmReceipt, so a seller like this made the trade fail and the
+   *         buyer's money stayed stuck in the escrow forever.
+   * Checks: the trade still completes; withdraw() fails with TransferFailed but the
+   *         balance is kept; withdrawTo() then pays the full price to the other address.
+   */
+  it("withdrawTo lets a seller that rejects ETH still collect the payment", async function () {
+    const { escrow, buyer, other } = await loadFixture(deployFixture);
+
+    // Normal sale where the seller is a contract that rejects ETH
+    const seller = await ethers.deployContract("EscrowTestParty", [await escrow.getAddress()]);
+    await seller.setMode(PartyMode.Reject, "0x");
+    await seller.createListing(PRICE);
+    await escrow.connect(buyer).createTrade(LISTING_ID, LISTING_HASH, { value: PRICE });
+    await seller.markShipped(TRADE_ID);
+
+    // The buyer can still confirm, because confirmReceipt only credits the seller
+    await escrow.connect(buyer).confirmReceipt(TRADE_ID);
+
+    // Sending to the seller fails, but the money is not lost
+    await expect(seller.withdraw()).to.be.revertedWithCustomError(escrow, "TransferFailed");
+    expect(await escrow.pendingWithdrawals(await seller.getAddress())).to.equal(PRICE);
+
+    // The seller sends its balance to another address instead
+    await expect(seller.withdrawTo(other.address)).to.changeEtherBalances(
+      [escrow, other],
+      [-PRICE, PRICE]
+    );
   });
 });
