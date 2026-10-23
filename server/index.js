@@ -306,6 +306,47 @@ app.post("/api/listings", upload.single("image"), async (req, res) => {
     }
 });
 
+// GET a listing by its escrow contract id (used to show trades in My Account)
+app.get("/api/chain-listings/:chainId", async (req, res) => {
+    try {
+        const chainListingId = Number(req.params.chainId);
+
+        if (!Number.isSafeInteger(chainListingId) || chainListingId <= 0) {
+            return res.status(400).json({
+                error: "Invalid listing ID"
+            });
+        }
+
+        const [rows] = await db.query(`
+            SELECT l.*,
+                (
+                    SELECT li.file_path
+                    FROM listing_images li
+                    WHERE li.listing_id = l.listing_id
+                    ORDER BY li.sort_order, li.image_id
+                    LIMIT 1
+                ) AS image_url
+            FROM listings l
+            WHERE l.chain_listing_id = ?
+        `, [chainListingId]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({
+                error: "Listing not found"
+            });
+        }
+
+        res.json(rows[0]);
+
+    } catch (error) {
+        console.error("Error retrieving listing:", error);
+
+        res.status(500).json({
+            error: "Failed to retrieve listing"
+        });
+    }
+});
+
 // POST sync: copy a listing's status from the escrow contract into the database.
 // Called after buy / cancel / confirm. Anyone can call it safely, because
 // the new status comes from the contract, not from the request.
