@@ -6,6 +6,7 @@ const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const db = require("./db");
+const { readChainListing, parseEther } = require("./escrow");
 
 const app = express();
 const PORT = 3001;
@@ -171,7 +172,8 @@ app.post("/api/listings", upload.single("image"), async (req, res) => {
             title,
             description,
             category,
-            price
+            price,
+            chain_listing_id
         } = req.body;
 
         const numericPrice = Number(price);
@@ -205,6 +207,29 @@ app.post("/api/listings", upload.single("image"), async (req, res) => {
 
         const wallet = seller_wallet.toLowerCase();
 
+        // The seller registered the listing with the escrow contract first.
+        // Check the contract agrees on seller and price, so the database
+        // can't advertise a different price from the one buyers must pay.
+        const chainListingId = Number(chain_listing_id);
+
+        if (!Number.isSafeInteger(chainListingId) || chainListingId <= 0) {
+            return res.status(400).json({
+                error: "Listing must be registered with the escrow contract"
+            });
+        }
+
+        const onChain = await readChainListing(chainListingId);
+
+        if (
+            onChain.status !== "active" ||
+            onChain.seller !== wallet ||
+            onChain.price !== parseEther(String(price))
+        ) {
+            return res.status(400).json({
+                error: "Escrow contract listing does not match this seller and price"
+            });
+        }
+
         const connection = await db.getConnection();
 
         try {
@@ -220,14 +245,15 @@ app.post("/api/listings", upload.single("image"), async (req, res) => {
             // Insert listing into MySQL
             const [result] = await connection.query(
                 `INSERT INTO listings
-                 (seller_wallet, title, description, category, price)
-                 VALUES (?, ?, ?, ?, ?)`,
+                 (seller_wallet, title, description, category, price, chain_listing_id)
+                 VALUES (?, ?, ?, ?, ?, ?)`,
                 [
                     wallet,
                     title.trim(),
                     description || null,
                     category || "Other",
-                    price
+                    price,
+                    chainListingId
                 ]
             );
 
