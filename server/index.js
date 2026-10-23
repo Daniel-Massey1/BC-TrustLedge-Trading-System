@@ -13,7 +13,8 @@ const PORT = 3001;
 
 // Middleware
 app.use(cors({
-    origin: "http://localhost:5173"
+    // Any local frontend port (Vite moves to 5174+ if 5173 is already in use)
+    origin: /^http:\/\/localhost:\d+$/
 }));
 
 app.use(express.json());
@@ -202,6 +203,14 @@ app.post("/api/listings", upload.single("image"), async (req, res) => {
         ) {
             return res.status(400).json({
                 error: "Invalid title or price"
+            });
+        }
+
+        // listings.price is DECIMAL(18,8). More decimals would be rounded in the
+        // database but not in the contract, so buyers would send the wrong amount.
+        if (!/^\d+(\.\d{1,8})?$/.test(String(price))) {
+            return res.status(400).json({
+                error: "Price can have at most 8 decimal places"
             });
         }
 
