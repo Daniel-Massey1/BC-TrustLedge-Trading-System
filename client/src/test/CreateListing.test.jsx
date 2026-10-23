@@ -81,4 +81,45 @@ describe('FR2: Create listing', () => {
     expect(postRequests()).toHaveLength(0)
     expect(registerListing).not.toHaveBeenCalled()
   })
+
+  async function fillAndSubmit(user) {
+    await user.type(screen.getByLabelText('Title'), 'Road bike')
+    await user.type(screen.getByLabelText('Description'), 'Size 54, recently serviced.')
+    await user.type(screen.getByLabelText(/Price/), '0.05')
+    await user.click(screen.getByRole('button', { name: 'Upload listing' }))
+  }
+
+  it('Test 3: rejecting the contract registration in MetaMask, Should fail without posting', async () => {
+    registerListing.mockRejectedValueOnce({ code: 'ACTION_REJECTED' })
+    const user = userEvent.setup()
+    await openCreatePage(user)
+
+    await fillAndSubmit(user)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Transaction rejected in MetaMask.')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Create listing' })).toBeInTheDocument()
+    // the database never gets a listing the contract doesn't know about
+    expect(postRequests()).toHaveLength(0)
+  })
+
+  it('Test 4: server rejects the listing, Should show its error and stay on the form', async () => {
+    fetch.mockImplementation(async (url, options) => {
+      if (options?.method === 'POST') {
+        return { ok: false, json: async () => ({ error: 'Escrow contract listing does not match this seller and price' }) }
+      }
+      return { ok: true, json: async () => [] }
+    })
+    const user = userEvent.setup()
+    await openCreatePage(user)
+
+    await fillAndSubmit(user)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Escrow contract listing does not match this seller and price')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Create listing' })).toBeInTheDocument()
+    // the form keeps what the user typed so they can fix it and try again
+    expect(screen.getByLabelText('Title')).toHaveValue('Road bike')
+    expect(screen.getByRole('button', { name: 'Upload listing' })).toBeEnabled()
+  })
 })
