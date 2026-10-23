@@ -306,6 +306,46 @@ app.post("/api/listings", upload.single("image"), async (req, res) => {
     }
 });
 
+// POST sync: copy a listing's status from the escrow contract into the database.
+// Called after buy / cancel / confirm. Anyone can call it safely, because
+// the new status comes from the contract, not from the request.
+app.post("/api/chain-listings/:chainId/sync", async (req, res) => {
+    try {
+        const chainListingId = Number(req.params.chainId);
+
+        if (!Number.isSafeInteger(chainListingId) || chainListingId <= 0) {
+            return res.status(400).json({
+                error: "Invalid listing ID"
+            });
+        }
+
+        const onChain = await readChainListing(chainListingId);
+
+        if (!onChain.status) {
+            return res.status(404).json({
+                error: "Listing not found in the escrow contract"
+            });
+        }
+
+        await db.query(
+            "UPDATE listings SET status = ? WHERE chain_listing_id = ?",
+            [onChain.status, chainListingId]
+        );
+
+        res.json({
+            chain_listing_id: chainListingId,
+            status: onChain.status
+        });
+
+    } catch (error) {
+        console.error("Error syncing listing:", error);
+
+        res.status(500).json({
+            error: "Failed to sync listing"
+        });
+    }
+});
+
  // DELETE listing (soft delete)
 app.delete("/api/listings/:id", async (req, res) => {
     try {
